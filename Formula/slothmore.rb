@@ -1,18 +1,58 @@
 class Slothmore < Formula
   desc "Local dashboard that starts web servers and runs scripts from folders"
   homepage "https://github.com/markusswedpal/slothmore"
-  url "https://github.com/markusswedpal/slothmore/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "a3f7bf2399b6af8ad1566846ae95a6883432cf0748d3256fc58a7b4cae43145e"
+  url "https://github.com/markusswedpal/slothmore/archive/refs/tags/v0.2.1.tar.gz"
+  sha256 "d7885ccd6db89e6ff4fc12ec500663c324b7b53e451e323d57093d6b9f9b4bbc"
   license "MIT"
 
-  depends_on "python@3.12"
+  # Whatever current Python Homebrew ships (3.12 to 3.15 are tested). The server uses only the standard library.
+  depends_on "python@3"
 
   def install
     libexec.install Dir["*"]
+
+    # The wrapper prefers the private venv (rumps + pyobjc for the menu bar icon and its quick panel) and falls back to
+    # Homebrew's Python if the venv is missing or broken, for example after a Python upgrade.
+    # SLOTHMORE_BIN is a path that survives upgrades; the menu bar login item uses it.
     (bin/"slothmore").write <<~EOS
       #!/bin/bash
-      exec "#{Formula["python@3.12"].opt_bin}/python3.12" "#{libexec}/bin/slothmore" "$@"
+      export SLOTHMORE_BIN="#{opt_bin}/slothmore"
+      PY="#{opt_libexec}/venv/bin/python"
+      if ! "$PY" -c "import sys" >/dev/null 2>&1; then
+        PY="#{Formula["python@3"].opt_bin}/python3"
+      fi
+      exec "$PY" "#{opt_libexec}/bin/slothmore" "$@"
     EOS
+  end
+
+  # The menu bar icon (macOS only) needs rumps and pyobjc (Cocoa, plus WebKit for the quick panel). They are installed here, after Homebrew has
+  # relocated the keg, from pinned, hash-checked wheels (macos/requirements-menubar.txt): nothing is compiled.
+  # If this step fails (for example offline), Slothmore still works; run `brew postinstall slothmore` to retry.
+  def post_install
+    return unless OS.mac?
+
+    venv = libexec/"venv"
+    system Formula["python@3"].opt_bin/"python3", "-m", "venv", "--clear", venv
+    ok = quiet_system venv/"bin/python", "-m", "pip", "install",
+                      "--disable-pip-version-check", "--no-deps", "--require-hashes",
+                      "--only-binary", "pyobjc-core,pyobjc-framework-Cocoa,pyobjc-framework-WebKit",
+                      "-r", libexec/"macos/requirements-menubar.txt"
+    opoo "Could not install the menu bar packages. Run `brew postinstall slothmore` to retry." unless ok
+  end
+
+  def caveats
+    s = <<~EOS
+      Open the dashboard:       slothmore
+      Run it in the background: brew services start slothmore   (then: slothmore open)
+    EOS
+    if OS.mac?
+      s += <<~EOS
+
+        Menu bar icon:            slothmore menubar   (click: quick panel, right-click: menu)
+        Start it at every login:  slothmore menubar --install-login
+      EOS
+    end
+    s
   end
 
   service do
@@ -25,6 +65,7 @@ class Slothmore < Formula
   end
 
   test do
-    assert_match "0.2.0", shell_output("#{bin}/slothmore --version")
+    assert_match "0.2.1", shell_output("#{bin}/slothmore --version")
+    assert_match "login item", shell_output("#{bin}/slothmore menubar --status")
   end
 end
