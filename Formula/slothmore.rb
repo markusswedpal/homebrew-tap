@@ -1,8 +1,8 @@
 class Slothmore < Formula
   desc "Local dashboard that starts web servers and runs scripts from folders"
   homepage "https://github.com/markusswedpal/slothmore"
-  url "https://github.com/markusswedpal/slothmore/archive/refs/tags/v0.2.1.tar.gz"
-  sha256 "d7885ccd6db89e6ff4fc12ec500663c324b7b53e451e323d57093d6b9f9b4bbc"
+  url "https://github.com/markusswedpal/slothmore/archive/refs/tags/v0.2.2.tar.gz"
+  sha256 "5d502736d0db3fa923e2fba50a8c6e1bc241508c33b8168c5dbe05d783e59d66"
   license "MIT"
 
   # Whatever current Python Homebrew ships (3.12 to 3.15 are tested). The server uses only the standard library.
@@ -65,7 +65,7 @@ class Slothmore < Formula
   end
 
   test do
-    assert_match "0.2.1", shell_output("#{bin}/slothmore --version")
+    assert_match "0.2.2", shell_output("#{bin}/slothmore --version")
     assert_match "login item", shell_output("#{bin}/slothmore menubar --status")
   end
 end
